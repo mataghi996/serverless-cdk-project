@@ -10,7 +10,6 @@ export class ServerlessCdkProjectStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // DynamoDB Table
     const table = new dynamodb.Table(this, 'StudentItemsTable', {
       tableName: 'StudentItems',
       partitionKey: {
@@ -21,7 +20,6 @@ export class ServerlessCdkProjectStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY
     });
 
-    // Lambda Function
     const itemsFunction = new lambdaNodejs.NodejsFunction(this, 'ItemsFunction', {
       runtime: lambda.Runtime.NODEJS_20_X,
       architecture: lambda.Architecture.X86_64,
@@ -34,32 +32,21 @@ export class ServerlessCdkProjectStack extends cdk.Stack {
       }
     });
 
-    // Give Lambda access to DynamoDB
     table.grantReadWriteData(itemsFunction);
 
-    // API Gateway
-    const api = new apigateway.RestApi(this, 'StudentItemsApi', {
-      restApiName: 'Student Items API'
-    });
+    const api = new apigateway.RestApi(this, 'StudentItemsApi');
 
-    // Connect API Gateway to Lambda
     const integration = new apigateway.LambdaIntegration(itemsFunction);
 
-    // /items
     const items = api.root.addResource('items');
+
     items.addMethod('GET', integration);
     items.addMethod('POST', integration);
 
-    // /items/{id}
     const item = items.addResource('{id}');
+
     item.addMethod('GET', integration);
     item.addMethod('PUT', integration);
     item.addMethod('DELETE', integration);
-
-    // Display API URL after deployment
-    new cdk.CfnOutput(this, 'ApiUrl', {
-  value: api.url,
-  description: 'API Gateway URL'
-});
   }
 }

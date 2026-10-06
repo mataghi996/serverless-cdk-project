@@ -1,4 +1,5 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+
 import {
   DynamoDBDocumentClient,
   PutCommand,
@@ -8,116 +9,136 @@ import {
   DeleteCommand
 } from "@aws-sdk/lib-dynamodb";
 
-const client = new DynamoDBClient({});
-const db = DynamoDBDocumentClient.from(client);
 
+// Connect to DynamoDB
+const client = new DynamoDBClient({});
+const dynamodb = DynamoDBDocumentClient.from(client);
+
+
+// Get table name
 const TABLE_NAME = process.env.TABLE_NAME!;
 
+
+// Lambda function
 export const handler = async (event: any) => {
-  try {
-    const method = event.httpMethod;
-    const id = event.pathParameters?.id;
 
-    // POST /items
-    if (method === "POST") {
-      const body = JSON.parse(event.body || "{}");
+  const method = event.httpMethod;
+  const id = event.pathParameters?.id;
 
-      if (!body.id || !body.name) {
-        return response(400, { message: "id and name are required" });
-      }
 
-      const item = {
-        id: body.id,
-        name: body.name,
-        description: body.description || "",
-        category: body.category || ""
-      };
+  // POST /items
+  if (method === "POST") {
 
-      await db.send(new PutCommand({
-        TableName: TABLE_NAME,
-        Item: item
-      }));
+    const item = JSON.parse(event.body);
 
-      return response(201, {
-        message: "Item created successfully",
-        item
-      });
-    }
+    const command = new PutCommand({
+      TableName: TABLE_NAME,
+      Item: item
+    });
 
-    // GET /items
-    if (method === "GET" && !id) {
-      const result = await db.send(new ScanCommand({
-        TableName: TABLE_NAME
-      }));
+    await dynamodb.send(command);
 
-      return response(200, result.Items || []);
-    }
-
-    // GET /items/{id}
-    if (method === "GET" && id) {
-      const result = await db.send(new GetCommand({
-        TableName: TABLE_NAME,
-        Key: { id }
-      }));
-
-      if (!result.Item) {
-        return response(404, { message: "Item not found" });
-      }
-
-      return response(200, result.Item);
-    }
-
-    // PUT /items/{id}
-    if (method === "PUT" && id) {
-      const body = JSON.parse(event.body || "{}");
-
-      const result = await db.send(new UpdateCommand({
-        TableName: TABLE_NAME,
-        Key: { id },
-        UpdateExpression: "SET #n = :name, description = :description, category = :category",
-        ExpressionAttributeNames: {
-          "#n": "name"
-        },
-        ExpressionAttributeValues: {
-          ":name": body.name || "",
-          ":description": body.description || "",
-          ":category": body.category || ""
-        },
-        ReturnValues: "ALL_NEW"
-      }));
-
-      return response(200, {
-        message: "Item updated successfully",
-        item: result.Attributes
-      });
-    }
-
-    // DELETE /items/{id}
-    if (method === "DELETE" && id) {
-      await db.send(new DeleteCommand({
-        TableName: TABLE_NAME,
-        Key: { id }
-      }));
-
-      return response(200, {
-        message: "Item deleted successfully"
-      });
-    }
-
-    return response(400, { message: "Invalid request" });
-
-  } catch (error) {
-    console.error(error);
-    return response(500, { message: "Internal Server Error" });
+    return {
+      statusCode: 201,
+      body: JSON.stringify(item)
+    };
   }
-};
 
-function response(statusCode: number, body: any) {
-  return {
-    statusCode,
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(body)
+
+  // GET /items
+  if (method === "GET" && !id) {
+
+    const command = new ScanCommand({
+      TableName: TABLE_NAME
+    });
+
+    const result = await dynamodb.send(command);
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify(result.Items)
+    };
+  }
+
+
+  // GET /items/{id}
+  if (method === "GET" && id) {
+
+    const command = new GetCommand({
+      TableName: TABLE_NAME,
+      Key: {
+        id: id
+      }
+    });
+
+    const result = await dynamodb.send(command);
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify(result.Item)
+    };
+  }
+
+
+  // PUT /items/{id}
+  if (method === "PUT" && id) {
+
+    const item = JSON.parse(event.body);
+
+    const command = new UpdateCommand({
+      TableName: TABLE_NAME,
+
+      Key: {
+        id: id
+      },
+
+      UpdateExpression:
+        "SET #name = :name, description = :description, category = :category",
+
+      ExpressionAttributeNames: {
+        "#name": "name"
+      },
+
+      ExpressionAttributeValues: {
+        ":name": item.name,
+        ":description": item.description,
+        ":category": item.category
+      },
+
+      ReturnValues: "ALL_NEW"
+    });
+
+    const result = await dynamodb.send(command);
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify(result.Attributes)
+    };
+  }
+
+
+  // DELETE /items/{id}
+  if (method === "DELETE" && id) {
+
+    const command = new DeleteCommand({
+      TableName: TABLE_NAME,
+
+      Key: {
+        id: id
+      }
+    });
+
+    await dynamodb.send(command);
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify({})
+    };
+  }
+    return {
+    statusCode: 400,
+    body: JSON.stringify({
+      message: "Invalid request"
+    })
   };
-}
+};

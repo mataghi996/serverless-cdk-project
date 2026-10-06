@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 import * as cdk from 'aws-cdk-lib';
 import { ServerlessCdkProjectStack } from '../lib/serverless-cdk-project-stack';
 
