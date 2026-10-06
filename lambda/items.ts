@@ -1,5 +1,4 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-
 import {
   DynamoDBDocumentClient,
   PutCommand,
@@ -10,28 +9,21 @@ import {
 } from "@aws-sdk/lib-dynamodb";
 
 const client = new DynamoDBClient({});
-const dynamodb = DynamoDBDocumentClient.from(client);
+const db = DynamoDBDocumentClient.from(client);
 
 const TABLE_NAME = process.env.TABLE_NAME!;
 
 export const handler = async (event: any) => {
-
-  console.log("Event:", JSON.stringify(event));
-
   try {
-
     const method = event.httpMethod;
     const id = event.pathParameters?.id;
 
     // POST /items
     if (method === "POST") {
-
       const body = JSON.parse(event.body || "{}");
 
       if (!body.id || !body.name) {
-        return response(400, {
-          message: "id and name are required"
-        });
+        return response(400, { message: "id and name are required" });
       }
 
       const item = {
@@ -41,12 +33,10 @@ export const handler = async (event: any) => {
         category: body.category || ""
       };
 
-      await dynamodb.send(
-        new PutCommand({
-          TableName: TABLE_NAME,
-          Item: item
-        })
-      );
+      await db.send(new PutCommand({
+        TableName: TABLE_NAME,
+        Item: item
+      }));
 
       return response(201, {
         message: "Item created successfully",
@@ -56,30 +46,22 @@ export const handler = async (event: any) => {
 
     // GET /items
     if (method === "GET" && !id) {
-
-      const result = await dynamodb.send(
-        new ScanCommand({
-          TableName: TABLE_NAME
-        })
-      );
+      const result = await db.send(new ScanCommand({
+        TableName: TABLE_NAME
+      }));
 
       return response(200, result.Items || []);
     }
 
     // GET /items/{id}
     if (method === "GET" && id) {
-
-      const result = await dynamodb.send(
-        new GetCommand({
-          TableName: TABLE_NAME,
-          Key: { id }
-        })
-      );
+      const result = await db.send(new GetCommand({
+        TableName: TABLE_NAME,
+        Key: { id }
+      }));
 
       if (!result.Item) {
-        return response(404, {
-          message: "Item not found"
-        });
+        return response(404, { message: "Item not found" });
       }
 
       return response(200, result.Item);
@@ -87,31 +69,22 @@ export const handler = async (event: any) => {
 
     // PUT /items/{id}
     if (method === "PUT" && id) {
-
       const body = JSON.parse(event.body || "{}");
 
-      const result = await dynamodb.send(
-        new UpdateCommand({
-          TableName: TABLE_NAME,
-
-          Key: { id },
-
-          UpdateExpression:
-            "SET #name = :name, description = :description, category = :category",
-
-          ExpressionAttributeNames: {
-            "#name": "name"
-          },
-
-          ExpressionAttributeValues: {
-            ":name": body.name || "",
-            ":description": body.description || "",
-            ":category": body.category || ""
-          },
-
-          ReturnValues: "ALL_NEW"
-        })
-      );
+      const result = await db.send(new UpdateCommand({
+        TableName: TABLE_NAME,
+        Key: { id },
+        UpdateExpression: "SET #n = :name, description = :description, category = :category",
+        ExpressionAttributeNames: {
+          "#n": "name"
+        },
+        ExpressionAttributeValues: {
+          ":name": body.name || "",
+          ":description": body.description || "",
+          ":category": body.category || ""
+        },
+        ReturnValues: "ALL_NEW"
+      }));
 
       return response(200, {
         message: "Item updated successfully",
@@ -121,30 +94,21 @@ export const handler = async (event: any) => {
 
     // DELETE /items/{id}
     if (method === "DELETE" && id) {
-
-      await dynamodb.send(
-        new DeleteCommand({
-          TableName: TABLE_NAME,
-          Key: { id }
-        })
-      );
+      await db.send(new DeleteCommand({
+        TableName: TABLE_NAME,
+        Key: { id }
+      }));
 
       return response(200, {
         message: "Item deleted successfully"
       });
     }
 
-    return response(400, {
-      message: "Unsupported request"
-    });
+    return response(400, { message: "Invalid request" });
 
   } catch (error) {
-
-    console.error("ERROR:", error);
-
-    return response(500, {
-      message: "Internal Server Error"
-    });
+    console.error(error);
+    return response(500, { message: "Internal Server Error" });
   }
 };
 

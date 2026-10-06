@@ -13,68 +13,53 @@ export class ServerlessCdkProjectStack extends cdk.Stack {
     // DynamoDB Table
     const table = new dynamodb.Table(this, 'StudentItemsTable', {
       tableName: 'StudentItems',
-
       partitionKey: {
         name: 'id',
-        type: dynamodb.AttributeType.STRING,
+        type: dynamodb.AttributeType.STRING
       },
-
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      removalPolicy: cdk.RemovalPolicy.DESTROY
     });
 
     // Lambda Function
-    const itemsFunction = new lambdaNodejs.NodejsFunction(
-      this,
-      'ItemsFunction',
-      {
-        runtime: lambda.Runtime.NODEJS_20_X,
-
-        architecture: lambda.Architecture.X86_64,
-
-        entry: path.join(__dirname, '../lambda/items.ts'),
-
-        handler: 'handler',
-
-        memorySize: 256,
-
-        timeout: cdk.Duration.seconds(10),
-
-        environment: {
-          TABLE_NAME: table.tableName,
-        },
+    const itemsFunction = new lambdaNodejs.NodejsFunction(this, 'ItemsFunction', {
+      runtime: lambda.Runtime.NODEJS_20_X,
+      architecture: lambda.Architecture.X86_64,
+      entry: path.join(__dirname, '../lambda/items.ts'),
+      handler: 'handler',
+      memorySize: 256,
+      timeout: cdk.Duration.seconds(10),
+      environment: {
+        TABLE_NAME: table.tableName
       }
-    );
+    });
 
-    // IAM Permissions
+    // Give Lambda access to DynamoDB
     table.grantReadWriteData(itemsFunction);
 
     // API Gateway
     const api = new apigateway.RestApi(this, 'StudentItemsApi', {
-      restApiName: 'Student Items API',
-      description: 'Serverless REST API using AWS CDK',
+      restApiName: 'Student Items API'
     });
 
+    // Connect API Gateway to Lambda
     const integration = new apigateway.LambdaIntegration(itemsFunction);
 
     // /items
     const items = api.root.addResource('items');
-
     items.addMethod('GET', integration);
     items.addMethod('POST', integration);
 
     // /items/{id}
     const item = items.addResource('{id}');
-
     item.addMethod('GET', integration);
     item.addMethod('PUT', integration);
     item.addMethod('DELETE', integration);
 
-    // Output API URL
+    // Display API URL after deployment
     new cdk.CfnOutput(this, 'ApiUrl', {
-      value: api.url,
-      description: 'API Gateway URL',
-    });
+  value: api.url,
+  description: 'API Gateway URL'
+});
   }
 }
