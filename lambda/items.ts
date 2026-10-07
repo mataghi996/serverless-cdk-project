@@ -21,7 +21,6 @@ export const handler = async (event: any) => {
     const method = event.httpMethod;
     const id = event.pathParameters?.id;
 
-    // POST
     if (method === "POST") {
 
       const body = JSON.parse(event.body || "{}");
@@ -58,7 +57,6 @@ export const handler = async (event: any) => {
       };
     }
 
-    // GET ALL
     if (method === "GET" && !id) {
 
       const result = await dynamodb.send(
@@ -73,7 +71,6 @@ export const handler = async (event: any) => {
       };
     }
 
-    // GET ONE
     if (method === "GET" && id) {
 
       const result = await dynamodb.send(
@@ -91,7 +88,6 @@ export const handler = async (event: any) => {
       };
     }
 
-    // PUT
     if (method === "PUT" && id) {
 
       const body = JSON.parse(event.body || "{}");
@@ -119,7 +115,6 @@ export const handler = async (event: any) => {
       };
     }
 
-    // DELETE
     if (method === "DELETE" && id) {
 
       await dynamodb.send(
